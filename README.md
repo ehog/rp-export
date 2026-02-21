@@ -137,3 +137,7 @@ Hierarchical format preserving the full structure:
   }
 ]
 ```
+
+## License
+
+[MIT](LICENSE)
