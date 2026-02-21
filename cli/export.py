@@ -188,7 +188,12 @@ def main():
             "  3. Find the <link rel=\"manifest\"> tag in the <head>\n"
             "  4. Copy the 'token' value from its href query string\n"
             "\n"
-            "Note: Tokens expire after a while. Grab a fresh one each session."
+            "Alternatively, open the Network tab, refresh the page, find the\n"
+            "request to /api/training/bootstrap, and copy the token from the\n"
+            "Authorization: Bearer <token> request header.\n"
+            "\n"
+            "Tokens expire after a while. Grab a fresh one each session.\n"
+            "See README.md for detailed instructions with examples."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

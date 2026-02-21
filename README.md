@@ -6,16 +6,41 @@ Two export methods are provided: a **browser bookmarklet** (one-click, no instal
 
 ## Getting Your Auth Token
 
-Both methods require a JWT token from your logged-in RP session.
+Both the bookmarklet and the Python script need a JWT auth token from your RP session. The bookmarklet extracts it automatically, but the Python script requires you to provide it via `--token`. Below are two ways to retrieve it manually.
 
-1. Open [training.rpstrength.com](https://training.rpstrength.com) and log in
-2. Open your browser's DevTools (`F12` or `Cmd+Option+I`)
-3. Go to the **Elements** tab
-4. In the `<head>` section, find the `<link rel="manifest" href="...">` tag
-5. Look at the `href` attribute — it contains a `?token=` query parameter
-6. Copy the token value (everything after `token=`)
+### Method 1: Elements Tab (recommended)
 
-> **Note:** Tokens expire after a while. You'll need to grab a fresh one each session.
+1. Open [training.rpstrength.com](https://training.rpstrength.com) and **log in**
+2. Open your browser's DevTools:
+   - **Windows / Linux:** press `F12` or `Ctrl+Shift+I`
+   - **macOS:** press `Cmd+Option+I`
+3. Go to the **Elements** tab (called **Inspector** in Firefox)
+4. Inside the `<head>` section near the top of the page, look for a tag like this:
+   ```html
+   <link rel="manifest" href="/manifest.json?token=eyJhbGciOi...">
+   ```
+5. Copy everything after `token=` in the `href` value — that is your token
+
+> **Tip:** You can use `Ctrl+F` / `Cmd+F` within the Elements panel and search for `rel="manifest"` to find the tag quickly.
+
+### Method 2: Network Tab
+
+1. Open [training.rpstrength.com](https://training.rpstrength.com) and **log in**
+2. Open DevTools and go to the **Network** tab
+3. Refresh the page
+4. In the Network filter/search bar, type `bootstrap` to find the API request to `/api/training/bootstrap`
+5. Click the request and go to the **Headers** section
+6. Under **Request Headers**, find the `Authorization` header — it will look like:
+   ```
+   Authorization: Bearer eyJhbGciOi...
+   ```
+7. Copy everything after `Bearer ` (note the space) — that is your token
+
+### Token Tips
+
+- **Tokens expire.** You'll need to grab a fresh one each time your session expires. If the script reports a `401` error, your token has expired — just retrieve a new one.
+- **The token is a long string** starting with `eyJ`. If what you copied looks different, double-check that you grabbed the full value.
+- **Keep your token private.** It grants access to your RP account data for as long as it's valid.
 
 ## Option 1: Bookmarklet
 
