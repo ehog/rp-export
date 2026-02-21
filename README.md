@@ -23,7 +23,7 @@ The simplest way to export — runs directly in your browser.
 
 ### Setup
 
-1. Open `bookmarklet.js` and copy its entire contents
+1. Open [`bookmarklet/rp-export.js`](bookmarklet/rp-export.js) and copy its entire contents
 2. In your browser, create a new bookmark (or edit an existing one)
 3. Set the **Name** to something like `RP Export`
 4. Paste the copied code as the **URL**
@@ -45,26 +45,26 @@ For CLI usage, automation, or if you prefer not to use a bookmarklet.
 ### Install
 
 ```bash
-pip install -r requirements.txt
+pip install -r cli/requirements.txt
 ```
 
 ### Usage
 
 ```bash
 # Export both CSV and JSON (default)
-python export.py --token YOUR_TOKEN_HERE
+python cli/export.py --token YOUR_TOKEN_HERE
 
 # Export only CSV
-python export.py --token YOUR_TOKEN_HERE --format csv
+python cli/export.py --token YOUR_TOKEN_HERE --format csv
 
 # Export only JSON
-python export.py --token YOUR_TOKEN_HERE --format json
+python cli/export.py --token YOUR_TOKEN_HERE --format json
 
 # Save to a specific directory
-python export.py --token YOUR_TOKEN_HERE --output-dir ~/Downloads
+python cli/export.py --token YOUR_TOKEN_HERE --output-dir ~/Downloads
 ```
 
-Run `python export.py --help` for full usage info.
+Run `python cli/export.py --help` for full usage info.
 
 ## Output Format
 
