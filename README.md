@@ -2,7 +2,42 @@
 
 Export your workout history from the [RP Hypertrophy app](https://training.rpstrength.com) — because the app doesn't have a native export feature.
 
-Two export methods are provided: a **browser bookmarklet** (one-click, no install) and a **Python script** (for automation or CLI workflows).
+Three methods are provided:
+
+| Method | What it does |
+|--------|-------------|
+| **[RP Dashboard bookmarklet](#option-1-rp-dashboard-bookmarklet-recommended)** | Fetches your data and opens a full analytics dashboard in a new tab — no files, no setup |
+| **[RP Export bookmarklet](#option-2-rp-export-bookmarklet)** | Downloads CSV + JSON files to your computer |
+| **[Python CLI](#option-3-python-cli)** | Command-line export for automation or scripting |
+
+## Option 1: RP Dashboard Bookmarklet (Recommended)
+
+Fetches your complete training history directly from RP Strength and opens a self-contained analytics dashboard in a new browser tab. Powered by [rp-lift-stats](https://github.com/ehog/rp-lift-stats).
+
+**No files to download. No Python. No manual steps.**
+
+### Setup
+
+1. Open [`bookmarklet/rp-dashboard.js`](bookmarklet/rp-dashboard.js) and copy its entire contents
+2. Create a new browser bookmark
+3. Set the **Name** to `RP Dashboard`
+4. Paste the copied code as the **URL**
+5. Save
+
+### Usage
+
+1. Go to [training.rpstrength.com](https://training.rpstrength.com) and log in
+2. Click the `RP Dashboard` bookmark
+3. A progress overlay appears while your data loads (~30s for a full history)
+4. A complete dashboard opens in a new tab — save it locally any time via File → Save
+
+The dashboard shows estimated 1RMs, personal records, DOTS scores, volume trends, rep max estimates, and more across your entire training history.
+
+---
+
+## Option 2: RP Export Bookmarklet
+
+Downloads CSV + JSON files of your workout history.
 
 ## Getting Your Auth Token
 
@@ -17,9 +52,7 @@ Both methods require a JWT token from your logged-in RP session.
 
 > **Note:** Tokens expire after a while. You'll need to grab a fresh one each session.
 
-## Option 1: Bookmarklet
-
-The simplest way to export — runs directly in your browser.
+### Setup
 
 ### Setup
 
@@ -38,7 +71,9 @@ The simplest way to export — runs directly in your browser.
    - `rp_workout_history_YYYY-MM-DD.csv`
    - `rp_workout_history_YYYY-MM-DD.json`
 
-## Option 2: Python Script
+---
+
+## Option 3: Python CLI
 
 For CLI usage, automation, or if you prefer not to use a bookmarklet.
 
