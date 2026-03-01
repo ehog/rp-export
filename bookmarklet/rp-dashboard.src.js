@@ -8,7 +8,7 @@
 
 (async () => {
   const BASE = 'https://training.rpstrength.com/api';
-  const TEMPLATE_URL = 'https://raw.githubusercontent.com/ehog/rp-lift-stats/main/index-template.html';
+  const TEMPLATE_URL = 'https://raw.githubusercontent.com/ehog/rp-export/main/index-template.html';
 
   const MUSCLE_GROUPS = {
     1: 'Chest', 2: 'Back', 3: 'Triceps', 4: 'Biceps',
