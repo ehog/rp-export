@@ -32,6 +32,15 @@ nav button:hover{color:var(--t1);background:var(--s2)}
 nav button.active{color:var(--p);background:var(--pd)}
 .header-meta{font-size:.72rem;color:var(--t3);white-space:nowrap;flex-shrink:0}
 
+/* ── EXPORT DROPDOWN ── */
+.export-wrap{position:relative;flex-shrink:0}
+.export-btn{background:none;border:1px solid var(--b1);color:var(--t3);padding:.3rem .75rem;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .18s;white-space:nowrap;display:flex;align-items:center;gap:.35rem}
+.export-btn:hover{border-color:var(--p);color:var(--t1)}
+.export-menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--s2);border:1px solid var(--b2);border-radius:var(--rs);min-width:150px;box-shadow:var(--sh);display:none;flex-direction:column;overflow:hidden;z-index:200}
+.export-menu.open{display:flex}
+.export-menu button{background:none;border:none;color:var(--t2);padding:.55rem 1rem;font-size:.8rem;font-weight:500;cursor:pointer;text-align:left;transition:background .15s}
+.export-menu button:hover{background:var(--s3);color:var(--t1)}
+
 /* ── LAYOUT ── */
 main{max-width:1380px;margin:0 auto;padding:1.75rem 1.5rem 5rem}
 section{display:none}
@@ -193,6 +202,13 @@ select:focus{outline:none;border-color:var(--p)}
     <button data-tab="progress">Insights</button>
   </nav>
   <div class="header-meta" id="header-meta"></div>
+  <div class="export-wrap">
+    <button class="export-btn" id="export-btn">Export ↓</button>
+    <div class="export-menu" id="export-menu">
+      <button id="export-json">⬇ JSON</button>
+      <button id="export-csv">⬇ CSV</button>
+    </div>
+  </div>
 </header>
 
 <div id="tip"></div>
@@ -1473,12 +1489,67 @@ function setupTabs() {
 // ════════════════════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════════════════════════
+function setupExport() {
+  const btn  = document.getElementById('export-btn');
+  const menu = document.getElementById('export-menu');
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click', () => menu.classList.remove('open'));
+
+  function download(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  document.getElementById('export-json').addEventListener('click', () => {
+    download(JSON.stringify(WORKOUT_DATA, null, 2), `rp_workout_history_${today()}.json`, 'application/json');
+    menu.classList.remove('open');
+  });
+
+  document.getElementById('export-csv').addEventListener('click', () => {
+    const esc = v => { const s = String(v ?? ''); return /[,"
+]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = ['Mesocycle,Week,Day,Day Label,Workout Date,Bodyweight,Exercise,Muscle Group,Set Number,Weight,Unit,Reps,Set Type,Status'];
+    WORKOUT_DATA.forEach(meso => {
+      meso.workouts.forEach(w => {
+        w.exercises.forEach(ex => {
+          ex.sets.forEach((s, si) => {
+            rows.push([
+              esc(meso.name), w.weekNumber, w.dayNumber, esc(w.label || ''),
+              esc(w.date || ''), w.bodyweight || '',
+              esc(ex.name), esc(ex.muscleGroupName || ''),
+              si + 1, s.weight ?? '', s.unit || 'lb', s.reps ?? '',
+              s.setType || '', s.status || ''
+            ].join(','));
+          });
+        });
+      });
+    });
+    download(rows.join('
+'), `rp_workout_history_${today()}.csv`, 'text/csv');
+    menu.classList.remove('open');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initStats();
   buildCalendar();
   initBodyweightChart();
   initMgDonut();
   setupTabs();
+  setupExport();
   chartsInitialized['overview'] = true; // overview charts done above
 });
 </script>
