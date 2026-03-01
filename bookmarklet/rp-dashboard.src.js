@@ -38,6 +38,16 @@
     if (el) el.remove();
   };
 
+  // Open the target window NOW (synchronously, while still in the click handler)
+  // so popup blockers don't interfere. We'll write content into it once data is ready.
+  const win = window.open('', '_blank');
+  if (!win) {
+    status('Error: popup blocked — allow popups for this site and try again.');
+    setTimeout(cleanup, 8000);
+    return;
+  }
+  win.document.write('<html><body style="background:#09090f;color:#edeaff;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-size:1.1rem">Loading your dashboard…</body></html>');
+
   try {
     // --- Extract JWT ---
     const manifestLink = document.querySelector('link[rel="manifest"]');
@@ -146,12 +156,12 @@
       jsonData.push(mesoJson);
     }
 
-    // --- Inject data into dashboard template and open ---
+    // --- Inject data into the pre-opened window ---
     status('Opening dashboard…');
     const html = template.replace('__WORKOUT_DATA__', JSON.stringify(jsonData));
-    const blob = new Blob([html], { type: 'text/html' });
-    const url  = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
 
     const totalWorkouts = jsonData.reduce((s, m) => s + m.workouts.length, 0);
     status(`Done! ${mesocycles.length} mesocycles · ${totalWorkouts} workouts.`);
