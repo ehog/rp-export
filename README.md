@@ -155,9 +155,21 @@ cli/
 
 ### Updating the Export Bookmarklet
 
-Edit `bookmarklet/rp-export.src.js`, then regenerate the minified version. The minification must:
-- Strip only lines where the first non-whitespace characters are `//` (not `//` inside strings — that would corrupt `https://` URLs)
-- Wrap the result with `javascript:void(...)` so the bookmark doesn't navigate away from the page
+Edit `bookmarklet/rp-export.src.js`, then regenerate the minified version:
+
+```python
+import re
+
+with open('bookmarklet/rp-export.src.js') as f:
+    src = f.read()
+
+# Strip pure comment lines only (preserves // inside strings like https://)
+src = re.sub(r'(?m)^[ \t]*//[^\n]*\n?', '', src)
+src = re.sub(r'\s+', ' ', src).strip().rstrip(';')
+
+with open('bookmarklet/rp-export.js', 'w') as f:
+    f.write('javascript:void(' + src + ')')
+```
 
 ### Auth Token
 

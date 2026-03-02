@@ -1,6 +1,6 @@
 // RP Hypertrophy App — Workout History Export Bookmarklet
 // Exports all workout data as CSV and JSON files.
-// Usage: Create a browser bookmark with bookmarklet.js as the URL,
+// Usage: Create a browser bookmark with rp-export.js as the URL,
 //        then click it while logged into training.rpstrength.com.
 
 (async () => {
