@@ -1,0 +1,179 @@
+---
+description: RP Export — project architecture and conventions
+globs: ["**/*.py", "**/*.html", "**/*.js", "**/*.md"]
+alwaysApply: true
+---
+
+# RP Export — Project Context
+
+## What This Project Is
+Tools for exporting workout history from the RP Hypertrophy app (training.rpstrength.com), which has no native export feature. Provides browser bookmarklets and a Python CLI.
+
+## Repository: Public
+- GitHub: https://github.com/ehog/rp-export (public)
+- Companion private repo: https://github.com/ehog/rp-lift-stats
+
+## Key Files
+
+| File | Role |
+|------|------|
+| `bookmarklet/rp-dashboard.src.js` | **Readable source** for the RP Dashboard bookmarklet. Edit this. |
+| `bookmarklet/rp-dashboard.js` | **Minified bookmarklet URL** — generated from src.js. This is what users copy into their browser bookmark. |
+| `bookmarklet/rp-export.src.js` | Readable source for the RP Export (download) bookmarklet. |
+| `bookmarklet/rp-export.js` | Minified RP Export bookmarklet. |
+| `index-template.html` | Dashboard shell with `__WORKOUT_DATA__` placeholder. **Synced from rp-lift-stats** — do not edit directly. |
+| `cli/export.py` | Python CLI for batch export via auth token. |
+| `cli/requirements.txt` | Python deps for the CLI (requests). |
+
+## How the Dashboard Bookmarklet Works
+
+`bookmarklet/rp-dashboard.src.js` runs in the context of `training.rpstrength.com` and:
+
+1. Opens a new tab synchronously (before any `await`) to avoid popup blockers
+2. Extracts the JWT from `<link rel="manifest" href="...?token=...">` in the page
+3. Fetches `index-template.html` from this repo and the RP API in parallel
+4. Iterates over all mesocycles, fetching each one from `/training/mesocycles/:key`
+5. Injects the collected data into the template by replacing `__WORKOUT_DATA__`
+6. Writes the completed dashboard into the new tab via `win.document.open()/write()/close()`
+7. Shows live progress in both the source tab overlay and the new tab loading screen
+
+## Template URL
+
+The bookmarklet fetches the template from:
+```
+https://raw.githubusercontent.com/ehog/rp-export/main/index-template.html
+```
+
+This must point to **this repo** (public) because `raw.githubusercontent.com` does not serve private repos. The rp-lift-stats repo (where the template is generated) is private.
+
+## Minification Process
+
+When `rp-dashboard.src.js` is updated, regenerate the minified bookmarklet:
+
+```python
+with open('bookmarklet/rp-dashboard.src.js') as f:
+    src = f.read()
+
+# Strip pure comment lines only (lines where first non-whitespace is //)
+import re
+src = re.sub(r'(?m)^[ \t]*//[^\n]*\n?', '', src)
+
+# Collapse whitespace
+src = re.sub(r'\s+', ' ', src).strip()
+
+# Strip trailing semicolon from the outer IIFE if present
+src = src.rstrip(';').rstrip()
+
+# Wrap as bookmarklet
+bookmarklet = 'javascript:void(' + src + ')'
+
+with open('bookmarklet/rp-dashboard.js', 'w') as f:
+    f.write(bookmarklet)
+```
+
+**Critical minification rules:**
+- Only strip lines that START with `//` — never strip `//` inside strings (would corrupt `https://` URLs)
+- The outer IIFE `(async () => { ... })()` must be wrapped in `javascript:void(...)` to prevent page navigation
+- The result must start with `javascript:void((async`
+
+## Bookmarklet Pattern
+
+```javascript
+javascript:void((async () => {
+  // ...
+})())
+```
+
+- `javascript:` — required URI scheme for bookmarklets
+- `void(...)` — prevents the bookmark from navigating away from the current page
+- `(async () => { ... })()` — async IIFE needed for `await` at top level
+
+## Popup Blocker Bypass
+
+`window.open()` must be called **synchronously** (before any `await`) to be considered user-initiated by the browser. The flow is:
+
+```javascript
+const win = window.open('', '_blank'); // SYNC — must be before any await
+// Write a loading screen immediately
+win.document.write('<html>...Loading...</html>');
+// Now do async work
+const data = await fetchData();
+// Finally inject the real content
+win.document.open();
+win.document.write(completedHtml);
+win.document.close();
+```
+
+## Auth Token
+
+RP Strength embeds a JWT in the manifest link on every page:
+```html
+<link rel="manifest" href="/manifest.json?token=eyJ...">
+```
+
+The bookmarklet extracts it with:
+```javascript
+const token = new URL(document.querySelector('link[rel="manifest"]').href)
+  .searchParams.get('token');
+```
+
+Tokens expire each session. Users must be logged in and on `training.rpstrength.com` when clicking the bookmark.
+
+## API Endpoints Used
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /training/bootstrap` | Returns `exercises[]` (id→name map) and `mesocycles[]` (list) |
+| `GET /training/mesocycles/:key` | Full mesocycle detail including weeks, days, exercises, sets |
+
+Base URL: `https://training.rpstrength.com/api`
+
+## Data Format Produced
+
+See rp-lift-stats repo for full JSON schema. Key shape:
+
+```json
+[
+  {
+    "name": "Mesocycle Name",
+    "workouts": [
+      {
+        "weekNumber": 1, "dayNumber": 1,
+        "date": "2025-01-06T...", "bodyweight": 225.0, "unit": "lb",
+        "exercises": [
+          {
+            "name": "Barbell Squat (High Bar)",
+            "muscleGroupName": "Quads",
+            "sets": [{ "weight": 255, "reps": 5, "setType": "regular", "status": "complete" }]
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+Only sets with `status === 'complete'` or a `finishedAt` timestamp are included.
+
+## Sync Workflow
+
+After changing the dashboard in rp-lift-stats:
+
+```bash
+# In rp-lift-stats
+python3 build.py
+cp index-template.html ../rp-export/index-template.html
+
+# In rp-export
+git add index-template.html
+git commit -m "Sync index-template.html from rp-lift-stats"
+git push
+```
+
+`raw.githubusercontent.com` caches files for a short time — allow ~30s for propagation after pushing.
+
+## Relationship with rp-lift-stats
+
+- rp-lift-stats generates `index-template.html`
+- rp-export hosts `index-template.html` publicly (required for CDN access)
+- Both repos should stay in sync on the template after any dashboard change
