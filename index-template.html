@@ -1519,8 +1519,7 @@ function setupExport() {
   });
 
   document.getElementById('export-csv').addEventListener('click', () => {
-    const esc = v => { const s = String(v ?? ''); return /[,"
-]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const esc = v => { const s = String(v ?? ''); return /[,"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const rows = ['Mesocycle,Week,Day,Day Label,Workout Date,Bodyweight,Exercise,Muscle Group,Set Number,Weight,Unit,Reps,Set Type,Status'];
     WORKOUT_DATA.forEach(meso => {
       meso.workouts.forEach(w => {
@@ -1537,8 +1536,7 @@ function setupExport() {
         });
       });
     });
-    download(rows.join('
-'), `rp_workout_history_${today()}.csv`, 'text/csv');
+    download(rows.join('\n'), `rp_workout_history_${today()}.csv`, 'text/csv');
     menu.classList.remove('open');
   });
 }
