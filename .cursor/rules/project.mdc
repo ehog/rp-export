@@ -1,108 +1,43 @@
 ---
 description: RP Export — project architecture and conventions
-globs: ["**/*.py", "**/*.html", "**/*.js", "**/*.md"]
+globs: ["**/*.py", "**/*.js", "**/*.md"]
 alwaysApply: true
 ---
 
 # RP Export — Project Context
 
 ## What This Project Is
-Tools for exporting workout history from the RP Hypertrophy app (training.rpstrength.com), which has no native export feature. Provides browser bookmarklets and a Python CLI.
+Tools for exporting workout history from the RP Hypertrophy app (training.rpstrength.com), which has no native export feature. This project is focused entirely on **getting data out** — it produces CSV and JSON files.
 
-## Repository: Public
+For analytics and dashboards, see the companion project: https://github.com/ehog/rp-lift-stats
+
+## Repository
 - GitHub: https://github.com/ehog/rp-export (public)
-- Companion private repo: https://github.com/ehog/rp-lift-stats
+- Companion analytics project: https://github.com/ehog/rp-lift-stats (public)
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `bookmarklet/rp-dashboard.src.js` | **Readable source** for the RP Dashboard bookmarklet. Edit this. |
-| `bookmarklet/rp-dashboard.js` | **Minified bookmarklet URL** — generated from src.js. This is what users copy into their browser bookmark. |
-| `bookmarklet/rp-export.src.js` | Readable source for the RP Export (download) bookmarklet. |
-| `bookmarklet/rp-export.js` | Minified RP Export bookmarklet. |
-| `index-template.html` | Dashboard shell with `__WORKOUT_DATA__` placeholder. **Synced from rp-lift-stats** — do not edit directly. |
-| `cli/export.py` | Python CLI for batch export via auth token. |
-| `cli/requirements.txt` | Python deps for the CLI (requests). |
+| `bookmarklet/rp-export.src.js` | Readable bookmarklet source. Edit this. |
+| `bookmarklet/rp-export.js` | Minified bookmarklet URL. Generated from src.js. Users paste this as a browser bookmark URL. |
+| `cli/export.py` | Python CLI for batch export using a manually-obtained auth token. |
+| `cli/requirements.txt` | Python deps (requests). |
 
-## How the Dashboard Bookmarklet Works
+## What This Project Does NOT Do
+- No dashboard rendering
+- No analytics or visualization
+- No dependency on rp-lift-stats at runtime (rp-lift-stats is a downstream consumer)
 
-`bookmarklet/rp-dashboard.src.js` runs in the context of `training.rpstrength.com` and:
+## How the Export Bookmarklet Works
 
-1. Opens a new tab synchronously (before any `await`) to avoid popup blockers
-2. Extracts the JWT from `<link rel="manifest" href="...?token=...">` in the page
-3. Fetches `index-template.html` from this repo and the RP API in parallel
-4. Iterates over all mesocycles, fetching each one from `/training/mesocycles/:key`
-5. Injects the collected data into the template by replacing `__WORKOUT_DATA__`
-6. Writes the completed dashboard into the new tab via `win.document.open()/write()/close()`
-7. Shows live progress in both the source tab overlay and the new tab loading screen
+`bookmarklet/rp-export.src.js` runs in the context of `training.rpstrength.com` and:
 
-## Template URL
-
-The bookmarklet fetches the template from:
-```
-https://raw.githubusercontent.com/ehog/rp-export/main/index-template.html
-```
-
-This must point to **this repo** (public) because `raw.githubusercontent.com` does not serve private repos. The rp-lift-stats repo (where the template is generated) is private.
-
-## Minification Process
-
-When `rp-dashboard.src.js` is updated, regenerate the minified bookmarklet:
-
-```python
-with open('bookmarklet/rp-dashboard.src.js') as f:
-    src = f.read()
-
-# Strip pure comment lines only (lines where first non-whitespace is //)
-import re
-src = re.sub(r'(?m)^[ \t]*//[^\n]*\n?', '', src)
-
-# Collapse whitespace
-src = re.sub(r'\s+', ' ', src).strip()
-
-# Strip trailing semicolon from the outer IIFE if present
-src = src.rstrip(';').rstrip()
-
-# Wrap as bookmarklet
-bookmarklet = 'javascript:void(' + src + ')'
-
-with open('bookmarklet/rp-dashboard.js', 'w') as f:
-    f.write(bookmarklet)
-```
-
-**Critical minification rules:**
-- Only strip lines that START with `//` — never strip `//` inside strings (would corrupt `https://` URLs)
-- The outer IIFE `(async () => { ... })()` must be wrapped in `javascript:void(...)` to prevent page navigation
-- The result must start with `javascript:void((async`
-
-## Bookmarklet Pattern
-
-```javascript
-javascript:void((async () => {
-  // ...
-})())
-```
-
-- `javascript:` — required URI scheme for bookmarklets
-- `void(...)` — prevents the bookmark from navigating away from the current page
-- `(async () => { ... })()` — async IIFE needed for `await` at top level
-
-## Popup Blocker Bypass
-
-`window.open()` must be called **synchronously** (before any `await`) to be considered user-initiated by the browser. The flow is:
-
-```javascript
-const win = window.open('', '_blank'); // SYNC — must be before any await
-// Write a loading screen immediately
-win.document.write('<html>...Loading...</html>');
-// Now do async work
-const data = await fetchData();
-// Finally inject the real content
-win.document.open();
-win.document.write(completedHtml);
-win.document.close();
-```
+1. Extracts the JWT from `<link rel="manifest" href="...?token=...">` in the page
+2. Calls `/training/bootstrap` to get the mesocycle list and exercise map
+3. Fetches each mesocycle via `/training/mesocycles/:key`
+4. Assembles the data into a JSON array and a flat CSV
+5. Triggers both file downloads in the browser
 
 ## Auth Token
 
@@ -128,23 +63,28 @@ Tokens expire each session. Users must be logged in and on `training.rpstrength.
 
 Base URL: `https://training.rpstrength.com/api`
 
-## Data Format Produced
+## Output Format
 
-See rp-lift-stats repo for full JSON schema. Key shape:
-
+### JSON Schema
+Array of mesocycle objects:
 ```json
 [
   {
     "name": "Mesocycle Name",
+    "key": "abc123",
+    "createdAt": "...", "finishedAt": "...",
+    "unit": "lb", "weeksCount": 8, "daysPerWeek": 5,
     "workouts": [
       {
         "weekNumber": 1, "dayNumber": 1,
-        "date": "2025-01-06T...", "bodyweight": 225.0, "unit": "lb",
+        "date": "...", "bodyweight": 225.0, "unit": "lb",
         "exercises": [
           {
             "name": "Barbell Squat (High Bar)",
             "muscleGroupName": "Quads",
-            "sets": [{ "weight": 255, "reps": 5, "setType": "regular", "status": "complete" }]
+            "sets": [
+              { "weight": 255, "reps": 5, "setType": "regular", "status": "complete" }
+            ]
           }
         ]
       }
@@ -155,25 +95,37 @@ See rp-lift-stats repo for full JSON schema. Key shape:
 
 Only sets with `status === 'complete'` or a `finishedAt` timestamp are included.
 
-## Sync Workflow
+### CSV
+Flat format — one row per set, with columns:
+Mesocycle, Week, Day, Day Label, Workout Date, Workout Status, Exercise, Muscle Group, Set Number, Weight, Unit, Reps, Set Type, Set Completed At, Set Status
 
-After changing the dashboard in rp-lift-stats:
+## Minification Process
 
-```bash
-# In rp-lift-stats
-python3 build.py
-cp index-template.html ../rp-export/index-template.html
+When `rp-export.src.js` is updated, regenerate the minified bookmarklet:
 
-# In rp-export
-git add index-template.html
-git commit -m "Sync index-template.html from rp-lift-stats"
-git push
+```python
+import re
+
+with open('bookmarklet/rp-export.src.js') as f:
+    src = f.read()
+
+# Strip pure comment lines only (lines where first non-whitespace is //)
+# IMPORTANT: never strip // inside strings — that would corrupt https:// URLs
+src = re.sub(r'(?m)^[ \t]*//[^\n]*\n?', '', src)
+src = re.sub(r'\s+', ' ', src).strip().rstrip(';')
+
+with open('bookmarklet/rp-export.js', 'w') as f:
+    f.write('javascript:void(' + src + ')')
 ```
 
-`raw.githubusercontent.com` caches files for a short time — allow ~30s for propagation after pushing.
+## Bookmarklet Pattern
 
-## Relationship with rp-lift-stats
+```javascript
+javascript:void((async () => {
+  // ...
+})())
+```
 
-- rp-lift-stats generates `index-template.html`
-- rp-export hosts `index-template.html` publicly (required for CDN access)
-- Both repos should stay in sync on the template after any dashboard change
+- `javascript:` — required URI scheme
+- `void(...)` — prevents page navigation
+- `(async () => { ... })()` — async IIFE for top-level `await`

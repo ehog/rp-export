@@ -2,52 +2,20 @@
 
 Export your workout history from the [RP Hypertrophy app](https://training.rpstrength.com) — because the app doesn't have a native export feature.
 
-Three methods are provided:
+Two methods are provided:
 
 | Method | What it does |
 |--------|-------------|
-| **[RP Dashboard](#option-1-rp-dashboard-bookmarklet-recommended)** | One click → full analytics dashboard opens in a new tab |
-| **[RP Export bookmarklet](#option-2-rp-export-bookmarklet)** | Downloads CSV + JSON files to your computer |
-| **[Python CLI](#option-3-python-cli)** | Command-line export for automation or scripting |
+| **[RP Export bookmarklet](#option-1-rp-export-bookmarklet)** | Downloads CSV + JSON files to your computer |
+| **[Python CLI](#option-2-python-cli)** | Command-line export for automation or scripting |
+
+> **Want an analytics dashboard?** See [rp-lift-stats](https://github.com/ehog/rp-lift-stats) — it includes a one-click Dashboard bookmarklet that fetches your data and opens a full stats dashboard in a new tab.
 
 ---
 
-## Option 1: RP Dashboard Bookmarklet (Recommended)
+## Option 1: RP Export Bookmarklet
 
-Fetches your complete training history directly from RP Strength and opens a self-contained analytics dashboard in a new browser tab. Powered by [rp-lift-stats](https://github.com/ehog/rp-lift-stats).
-
-**No files to download. No Python. No manual steps.**
-
-### Setup
-
-1. Open [`bookmarklet/rp-dashboard.js`](bookmarklet/rp-dashboard.js) and copy its entire contents
-2. Create a new browser bookmark
-3. Set the **Name** to `RP Dashboard`
-4. Paste the copied code as the **URL**
-5. Save
-
-### Usage
-
-1. Go to [training.rpstrength.com](https://training.rpstrength.com) and log in
-2. Click the `RP Dashboard` bookmark
-3. A progress overlay appears while your data loads (~30s for a full history)
-4. A complete dashboard opens in a new tab
-
-The dashboard includes: estimated 1RMs, personal records, DOTS scores, volume trends, rep max estimates, bodyweight overlay, and more — spanning your entire training history across all mesocycles.
-
-The resulting page is fully self-contained. Save it any time via **File → Save Page As** to keep a local snapshot.
-
----
-
-## Option 2: RP Export Bookmarklet
-
-Downloads your workout history as CSV and JSON files.
-
-### Getting Your Auth Token
-
-The bookmarklet extracts the token automatically from the page — no DevTools needed.
-
-> **Note:** Tokens expire each session. If you get a "Token expired" error, refresh the RP Strength page and try again.
+Downloads your workout history as CSV and JSON files directly to your computer.
 
 ### Setup
 
@@ -66,9 +34,11 @@ The bookmarklet extracts the token automatically from the page — no DevTools n
    - `rp_workout_history_YYYY-MM-DD.csv`
    - `rp_workout_history_YYYY-MM-DD.json`
 
+> **Note:** Tokens expire each session. If you get a "Token expired" error, refresh the RP Strength page and try again.
+
 ---
 
-## Option 3: Python CLI
+## Option 2: Python CLI
 
 For automation, scripting, or headless environments.
 
@@ -176,52 +146,28 @@ Flat format with one row per set:
 
 ```
 bookmarklet/
-  rp-dashboard.src.js   ← Readable bookmarklet source (edit this)
-  rp-dashboard.js       ← Minified bookmarklet URL (generated)
-  rp-export.src.js      ← Readable export bookmarklet source
-  rp-export.js          ← Minified export bookmarklet
+  rp-export.src.js   ← Readable bookmarklet source (edit this)
+  rp-export.js       ← Minified bookmarklet URL (generated)
 cli/
-  export.py             ← Python CLI
+  export.py          ← Python CLI
   requirements.txt
-index-template.html     ← Dashboard shell synced from rp-lift-stats (do not edit directly)
 ```
 
-### Updating the Dashboard Bookmarklet
+### Updating the Export Bookmarklet
 
-Edit `bookmarklet/rp-dashboard.src.js`, then regenerate the minified version:
+Edit `bookmarklet/rp-export.src.js`, then regenerate the minified version. The minification must:
+- Strip only lines where the first non-whitespace characters are `//` (not `//` inside strings — that would corrupt `https://` URLs)
+- Wrap the result with `javascript:void(...)` so the bookmark doesn't navigate away from the page
 
-```python
-import re
+### Auth Token
 
-with open('bookmarklet/rp-dashboard.src.js') as f:
-    src = f.read()
+RP Strength embeds a short-lived JWT in the manifest link on every page:
 
-# Strip pure comment lines only (preserves // inside strings like https://)
-src = re.sub(r'(?m)^[ \t]*//[^\n]*\n?', '', src)
-src = re.sub(r'\s+', ' ', src).strip().rstrip(';')
-
-with open('bookmarklet/rp-dashboard.js', 'w') as f:
-    f.write('javascript:void(' + src + ')')
+```html
+<link rel="manifest" href="/manifest.json?token=eyJ...">
 ```
 
-Key constraints:
-- `window.open()` must be called **synchronously** (before any `await`) to pass popup blockers
-- The template URL must point to this public repo — `raw.githubusercontent.com` does not serve private repos
-- Comment stripping must only remove lines starting with `//`, not `//` inside strings
-
-### Syncing the Dashboard Template
-
-`index-template.html` is generated by [rp-lift-stats](https://github.com/ehog/rp-lift-stats) and must be kept in sync here:
-
-```bash
-# After rebuilding rp-lift-stats
-cp ../rp-lift-stats/index-template.html ./index-template.html
-git add index-template.html
-git commit -m "Sync index-template.html from rp-lift-stats"
-git push
-```
-
-Allow ~30s after pushing for `raw.githubusercontent.com` CDN propagation.
+The bookmarklet extracts it automatically — no DevTools needed.
 
 ---
 
